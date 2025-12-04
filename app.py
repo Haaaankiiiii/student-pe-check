@@ -5,9 +5,32 @@ import pytz
 from typing import Optional
 
 # ==============================
-# 0. 설정: 교시 시간대 (학교 시간에 맞게 수정 완료!)
+# 0. 간단 스타일 (버튼 색 강조)
 # ==============================
-# 24시간 형식 "HH:MM"
+CUSTOM_CSS = """
+<style>
+/* 체육시간 확인 버튼 파란색 강조 */
+.stButton>button {
+    background-color: #1f77ff !important;
+    color: white !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+    padding: 0.5rem 1.2rem !important;
+}
+
+/* 모바일에서 좀 더 여백 확보 (선택 사항) */
+@media (max-width: 768px) {
+    .block-container {
+        padding-left: 0.8rem;
+        padding-right: 0.8rem;
+    }
+}
+</style>
+"""
+
+# ==============================
+# 1. 설정: 교시 시간대 (학교 시간)
+# ==============================
 PERIOD_SCHEDULE = [
     {"period": 1, "start": "08:50", "end": "09:40"},
     {"period": 2, "start": "09:50", "end": "10:40"},
@@ -18,10 +41,7 @@ PERIOD_SCHEDULE = [
     {"period": 7, "start": "15:40", "end": "16:30"},
 ]
 
-# 시간표에서 "체육"이라고 적힌 과목을 체육으로 인식
 PE_KEYWORD = "체육"
-
-# 한국 시간대
 KST = pytz.timezone("Asia/Seoul")
 
 WEEKDAY_MAP = {
@@ -34,15 +54,12 @@ WEEKDAY_MAP = {
     6: "일요일",
 }
 
-
 # ==============================
-# 1. 시간표 불러오기
+# 2. 시간표 관련 함수
 # ==============================
 @st.cache_data
 def load_timetable(path: str) -> pd.DataFrame:
-    """timetable.xlsx 읽어서 DataFrame으로 반환.
-    컬럼: 학년, 반, 요일, 교시, 과목
-    """
+    """timetable.xlsx -> DataFrame (학년, 반, 요일, 교시, 과목)"""
     df = pd.read_excel(path)
 
     df["학년"] = df["학년"].astype(int)
@@ -55,9 +72,7 @@ def load_timetable(path: str) -> pd.DataFrame:
 
 
 def get_period_from_now(now: datetime) -> Optional[int]:
-    """현재 시간이 어느 교시에 속하는지 PERIOD_SCHEDULE를 보고 반환.
-    속하지 않으면 None 반환.
-    """
+    """현재 시간이 몇 교시인지 PERIOD_SCHEDULE 보고 판단."""
     current_t = now.time()
 
     def parse_hm(hm_str: str) -> time:
@@ -66,7 +81,6 @@ def get_period_from_now(now: datetime) -> Optional[int]:
     for item in PERIOD_SCHEDULE:
         start_t = parse_hm(item["start"])
         end_t = parse_hm(item["end"])
-        # start <= 현재 < end 이면 해당 교시로 본다
         if start_t <= current_t < end_t:
             return item["period"]
 
@@ -74,7 +88,7 @@ def get_period_from_now(now: datetime) -> Optional[int]:
 
 
 def check_pe(df: pd.DataFrame, grade: int, class_no: int, weekday: str, period: int) -> bool:
-    """해당 학년/반/요일/교시에 체육(PE_KEYWORD)이 들어있는지 여부 반환."""
+    """해당 학년/반/요일/교시에 체육이 있는지 여부."""
     cond = (
         (df["학년"] == grade)
         & (df["반"] == class_no)
@@ -86,14 +100,11 @@ def check_pe(df: pd.DataFrame, grade: int, class_no: int, weekday: str, period: 
     if sub_df.empty:
         return False
 
-    # 한 셀이 "체육", "체육A", "체육(축구)" 이런 식일 수도 있으니까 부분 포함으로 체크
     return any(PE_KEYWORD in subj for subj in sub_df["과목"])
 
 
 def get_today_pe_summary(df: pd.DataFrame, weekday: str) -> pd.DataFrame:
-    """오늘 요일 기준으로, 어떤 학년/반이 몇 교시에 체육이 있는지 요약.
-    반환: 컬럼 [학년, 반, 체육 교시]
-    """
+    """오늘 요일 기준으로, 어떤 학년/반이 몇 교시에 체육이 있는지 요약."""
     cond = (df["요일"] == weekday) & (df["과목"].str.contains(PE_KEYWORD))
     sub = df[cond].copy()
 
@@ -130,13 +141,13 @@ def get_today_pe_periods_for_class(
 
 
 # ==============================
-# 2. Streamlit UI
+# 3. Streamlit UI
 # ==============================
-
 def main():
     st.set_page_config(page_title="체육복 확인 앱", layout="wide")
-    st.title("🏃 교사용 학생 체육시간 확인 앱")
+    st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
+    st.title("🏃 교사용 학생 체육시간 확인 앱")
     st.markdown(
         """
         교사가 학년/반을 선택하면,  
@@ -153,7 +164,7 @@ def main():
         st.error(str(e))
         st.stop()
 
-    # 학년/반 목록 준비
+    # 학년/반 목록
     grades = sorted(df_timetable["학년"].unique())
     classes_by_grade = {
         g: sorted(df_timetable[df_timetable["학년"] == g]["반"].unique())
@@ -163,23 +174,36 @@ def main():
     # ---- 현재 시간 & 오늘 요일 ----
     now_utc = datetime.utcnow().replace(tzinfo=pytz.utc)
     now_kst = now_utc.astimezone(KST)
-    weekday_name = WEEKDAY_MAP[now_kst.weekday()]  # ex) "월요일", "토요일"
+    weekday_name = WEEKDAY_MAP[now_kst.weekday()]  # ex) "월요일"
 
     st.info(
         f"현재 시간 (KST 기준): **{now_kst.strftime('%Y-%m-%d %H:%M:%S')}**, "
         f"오늘 요일: **{weekday_name}**"
     )
 
+    # 👉 여기서 바로 '현재 교시' 안내
+    if weekday_name in ["월요일", "화요일", "수요일", "목요일", "금요일"]:
+        current_period = get_period_from_now(now_kst)
+        if current_period is not None:
+            st.write(f"현재 시간은 **{current_period}교시** 시간대로 인식했습니다.")
+        else:
+            st.write(
+                "현재 시간은 설정된 어느 교시에도 속하지 않습니다. "
+                "교시 시간(PERIOD_SCHEDULE)을 확인해주세요."
+            )
+    else:
+        st.write("오늘은 토요일/일요일입니다. 정규 수업이 없을 수 있습니다.")
+
     st.markdown("---")
 
     # ==============================
-    # 2단 레이아웃: 왼쪽(학년/반 + 현재시간 확인), 오른쪽(오늘 체육 요약)
+    # 2단 레이아웃: 왼쪽(학급+버튼), 오른쪽(오늘 요약)
     # ==============================
     col_left, col_right = st.columns(2)
 
-    # ----- 왼쪽: 학년/반 선택 + 현재 시간 기준 자동 계산 -----
+    # ----- 왼쪽: 학년/반 선택 + 버튼 -----
     with col_left:
-        st.subheader("🎓 학년 / 반 선택 & 현재 시간 확인")
+        st.subheader("🎓 학년 / 반 선택")
 
         c1, c2 = st.columns(2)
         with c1:
@@ -191,29 +215,24 @@ def main():
                 key="class_select",
             )
 
-        st.write(
-            f"선택된 학급: **{selected_grade}학년 {selected_class}반**"
-        )
+        st.write(f"선택된 학급: **{selected_grade}학년 {selected_class}반**")
 
         st.markdown("---")
-        st.markdown("### ⏱ 현재 시간 기준 자동 계산")
 
+        # 여기서 바로 버튼만 보여줌 (블록 제목 제거)
         if weekday_name not in ["월요일", "화요일", "수요일", "목요일", "금요일"]:
             st.warning("📌 오늘은 토요일/일요일이므로 수업 시간이 아닐 가능성이 큽니다.")
         else:
-            current_period = get_period_from_now(now_kst)
+            if st.button("현재 시간 기준 체육시간 여부 확인"):
+                # current_period은 위에서 이미 계산했음
+                current_period = get_period_from_now(now_kst)
 
-            if current_period is None:
-                st.warning(
-                    "지금 시간은 어느 교시에도 속하지 않습니다. "
-                    "교시 시간 설정(PERIOD_SCHEDULE)을 확인해주세요."
-                )
-            else:
-                st.write(
-                    f"현재 시간은 **{current_period}교시** 시간대로 인식했습니다."
-                )
-
-                if st.button("현재 시간 기준 체육시간 여부 확인"):
+                if current_period is None:
+                    st.warning(
+                        "지금 시간은 어느 교시에도 속하지 않습니다. "
+                        "교시 시간 설정(PERIOD_SCHEDULE)을 확인해주세요."
+                    )
+                else:
                     is_pe = check_pe(
                         df_timetable,
                         grade=selected_grade,
@@ -243,19 +262,20 @@ def main():
                     if today_periods:
                         txt = ", ".join(f"{p}교시" for p in today_periods)
                         st.info(
-                            f"📌 참고: 오늘(**{weekday_name}**) {selected_grade}학년 {selected_class}반의 체육 시간은 "
-                            f"**{txt}** 입니다."
+                            f"📌 참고: 오늘(**{weekday_name}**) "
+                            f"{selected_grade}학년 {selected_class}반의 체육 시간은 **{txt}** 입니다."
                         )
                     else:
                         st.info(
-                            f"📌 참고: 오늘(**{weekday_name}**) {selected_grade}학년 {selected_class}반은 체육 시간이 없습니다."
+                            f"📌 참고: 오늘(**{weekday_name}**) "
+                            f"{selected_grade}학년 {selected_class}반은 체육 시간이 없습니다."
                         )
 
         st.caption(
             "※ 교시 시간대가 실제 학교 시간과 다르면, 코드 맨 위의 PERIOD_SCHEDULE를 수정해주세요."
         )
 
-    # ----- 오른쪽: 오늘 요일 기준 체육 시간 요약 -----
+    # ----- 오른쪽: 오늘 요일 기준 체육 요약 -----
     with col_right:
         st.subheader("📅 오늘 요일 기준 체육 시간 요약")
 
