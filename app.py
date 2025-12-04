@@ -175,11 +175,6 @@ def main():
     now_kst = now_utc.astimezone(KST)
     weekday_name = WEEKDAY_MAP[now_kst.weekday()]  # ex) "월요일"
 
-    st.info(
-        f"현재 시간 (KST 기준): **{now_kst.strftime('%Y-%m-%d %H:%M:%S')}**, "
-        f"오늘 요일: **{weekday_name}**"
-    )
-
     # 👉 여기서 바로 '현재 교시' 안내
     if weekday_name in ["월요일", "화요일", "수요일", "목요일", "금요일"]:
         current_period = get_period_from_now(now_kst)
@@ -269,10 +264,6 @@ def main():
                             f"📌 참고: 오늘(**{weekday_name}**) "
                             f"{selected_grade}학년 {selected_class}반은 체육 시간이 없습니다."
                         )
-
-        st.caption(
-            "※ 교시 시간대가 실제 학교 시간과 다르면, 코드 맨 위의 PERIOD_SCHEDULE를 수정해주세요."
-        )
 
     # ----- 오른쪽: 오늘 요일 기준 체육 요약 -----
     with col_right:
