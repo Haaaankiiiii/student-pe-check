@@ -151,7 +151,7 @@ def main():
     st.markdown(
         """
         학년/반을 선택하면,  
-        **현재 시간 기준으로 체육 시간인지 여부**를 자동으로 확인해줍니다.  
+        **현재 시간 기준으로 체육 시간인지 여부**를 확인해줍니다.  
         """
     )
 
@@ -179,7 +179,7 @@ def main():
     if weekday_name in ["월요일", "화요일", "수요일", "목요일", "금요일"]:
         current_period = get_period_from_now(now_kst)
         if current_period is not None:
-            st.write(f"현재 시간은 **{current_period}교시** 시간대로 인식했습니다.")
+            st.write(f"현재 시간은 **{current_period}교시** 입니다.")
         else:
             st.write(
                 "현재 시간은 설정된 어느 교시에도 속하지 않습니다. "
