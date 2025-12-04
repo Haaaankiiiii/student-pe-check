@@ -147,12 +147,11 @@ def main():
     st.set_page_config(page_title="체육복 확인 앱", layout="wide")
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
-    st.title("🏃 교사용 학생 체육시간 확인 앱")
+    st.title("🏃 학생 체육시간 확인")
     st.markdown(
         """
-        교사가 학년/반을 선택하면,  
-        **현재 시간 기준으로 체육 시간인지 여부**를 자동으로 확인해주는 앱입니다.  
-        학생 이름은 저장하지 않고, 시간표에 있는 학년/반/과목 정보만 사용합니다.
+        학년/반을 선택하면,  
+        **현재 시간 기준으로 체육 시간인지 여부**를 자동으로 확인해줍니다.  
         """
     )
 
@@ -277,7 +276,7 @@ def main():
 
     # ----- 오른쪽: 오늘 요일 기준 체육 요약 -----
     with col_right:
-        st.subheader("📅 오늘 요일 기준 체육 시간 요약")
+        st.subheader("📅 오늘 기준 체육 시간")
 
         if weekday_name in ["월요일", "화요일", "수요일", "목요일", "금요일"]:
             df_today_pe = get_today_pe_summary(df_timetable, weekday_name)
